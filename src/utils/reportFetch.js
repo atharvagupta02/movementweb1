@@ -1,7 +1,17 @@
 // Shared helpers for the Reports screens. Filtering now happens on the backend,
 // so each screen just passes the selected month/year and renders what it gets.
 
-const base = import.meta.env.VITE_BACKEND_URL;
+const base = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+const readJson = async (res) => {
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Server returned status ${res.status} (expected JSON)`);
+  }
+  return res.json().catch(() => {
+    throw new Error("Invalid JSON response from server");
+  });
+};
 
 const buildQuery = ({ month, year } = {}) => {
   const params = new URLSearchParams();
@@ -16,18 +26,16 @@ const buildQuery = ({ month, year } = {}) => {
 // error state.
 export const fetchReport = async (type, period) => {
   const res = await fetch(`${base}/api/report/${type}${buildQuery(period)}`);
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
-  const json = await res.json();
-  if (!json.success) throw new Error(json.message || "Request failed");
+  const json = await readJson(res);
+  if (!res.ok || !json.success) throw new Error(json?.message || `Request failed (${res.status})`);
   return Array.isArray(json.data) ? json.data : [];
 };
 
 // Fetch the computed financial summary (P&L + trend) for a period.
 export const fetchSummary = async (period) => {
   const res = await fetch(`${base}/api/report/summary${buildQuery(period)}`);
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
-  const json = await res.json();
-  if (!json.success) throw new Error(json.message || "Failed to load summary");
+  const json = await readJson(res);
+  if (!res.ok || !json.success) throw new Error(json?.message || "Failed to load summary");
   return json.data;
 };
 
