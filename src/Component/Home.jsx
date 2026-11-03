@@ -14,7 +14,7 @@ import { Link } from "react-router-dom";
   anyone else those cards hide or swap instead of breaking the page.
 */
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL;
+const BACKEND = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const API = {
   enquiries: "/api/enquiry/getEnquiry", // any signed-in staff; paged
   billing: "/api/report/summary", // owner only
@@ -26,7 +26,18 @@ const MAX_PAGES = 30;
 /* ------------------------------ data layer ------------------------------ */
 
 const getJson = async (path) => {
-  const res = await fetch(`${BACKEND}${path}`, { headers: { token: localStorage.getItem("webapptoken") || "" } });
+  const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${BACKEND}${cleanPath}`, {
+    headers: {
+      "Content-Type": "application/json",
+      token: token,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("SESSION_EXPIRED");
+  }
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return res.json();
 };
@@ -61,7 +72,9 @@ const normalizeBilling = (r) => {
 const loadData = async () => {
   const [e, b, m] = await Promise.allSettled([loadEnquiries(), getJson(API.billing), getJson(API.employees)]);
   const emps = m.status === "fulfilled" ? m.value.employees || [] : null;
+  const failureReason = e.status === "rejected" ? e.reason?.message : null;
   return {
+    error: failureReason,
     enquiries: e.status === "fulfilled" ? e.value : null,
     // Money and staff figures are owner-only; for anyone else these stay hidden.
     billing: b.status === "fulfilled" ? normalizeBilling(b.value) : null,
@@ -223,12 +236,24 @@ const Dashboard = () => {
   const email = employee?.personalDetails?.email || "";
   const firstName = (employee?.personalDetails?.name || email.split("@")[0] || "there").split(" ")[0];
 
+  const [loadError, setLoadError] = useState("");
+
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setLoadError("");
     loadData()
-      .then((d) => alive && setData(d))
-      .catch(() => alive && setData({ enquiries: null }))
+      .then((d) => {
+        if (!alive) return;
+        if (d.error) setLoadError(d.error);
+        setData(d);
+      })
+      .catch((err) => {
+        if (alive) {
+          setLoadError(err?.message || "Failed to load");
+          setData({ enquiries: null });
+        }
+      })
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -263,17 +288,41 @@ const Dashboard = () => {
   if (loading) return <div className="mx-auto w-full max-w-7xl p-4 sm:p-6"><Skeleton /></div>;
 
   if (!stats) {
+    const isAuthErr = loadError === "SESSION_EXPIRED" || !localStorage.getItem("webapptoken");
     return (
       <div className="mx-auto w-full max-w-7xl p-4 sm:p-6">
         <Card className="mx-auto max-w-lg text-center">
-          <p className="text-lg font-bold text-slate-800">Could not load the dashboard</p>
-          <p className="mt-1 text-sm text-slate-500">Check your connection, then try again.</p>
-          <button
-            onClick={() => setReload((n) => n + 1)}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0B4BAA] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#093d8c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C2CB] focus-visible:ring-offset-2"
-          >
-            <Icon d={ICONS.refresh} className="h-4 w-4" /> Try again
-          </button>
+          <p className="text-lg font-bold text-slate-800">
+            {isAuthErr ? "Session Expired or Login Required" : "Could not load the dashboard"}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            {isAuthErr
+              ? "Your session has expired or is invalid. Please sign in again."
+              : loadError === "Failed to fetch"
+              ? "Could not reach the backend server. Check your connection or backend status."
+              : loadError || "Check your connection, then try again."}
+          </p>
+          <div className="mt-5 flex justify-center gap-3">
+            {isAuthErr ? (
+              <button
+                onClick={() => {
+                  localStorage.removeItem("webapptoken");
+                  localStorage.removeItem("token");
+                  window.location.assign("/auth");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0B4BAA] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#093d8c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C2CB] focus-visible:ring-offset-2"
+              >
+                Sign in again
+              </button>
+            ) : (
+              <button
+                onClick={() => setReload((n) => n + 1)}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0B4BAA] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#093d8c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C2CB] focus-visible:ring-offset-2"
+              >
+                <Icon d={ICONS.refresh} className="h-4 w-4" /> Try again
+              </button>
+            )}
+          </div>
         </Card>
       </div>
     );

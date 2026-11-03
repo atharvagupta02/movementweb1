@@ -10,7 +10,7 @@
  * not download the same lists again. Any write to the API clears the lot, and
  * live attendance data is never kept.
  */
-const BASE = import.meta.env.VITE_BACKEND_URL;
+const BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const SESSION_KEYS = ["webapptoken", "employeeData", "loginEmployeeData"];
 
 // Pages that handle their own expired-login messaging, or need no login.
@@ -67,7 +67,13 @@ const endSessionIfRejected = async (response, attached) => {
     .clone()
     .json()
     .catch(() => ({}));
-  if (AUTH_FAILURE_CODES.includes(body?.code)) endSession();
+  if (
+    AUTH_FAILURE_CODES.includes(body?.code) ||
+    body?.message?.toLowerCase().includes("token") ||
+    body?.message?.toLowerCase().includes("login")
+  ) {
+    endSession();
+  }
 };
 
 const jsonResponse = (body, contentType) =>

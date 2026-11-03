@@ -337,10 +337,21 @@ const AllEmployee = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/employee/getAllEmployee`);
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+      const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
+      const response = await fetch(`${backendUrl}/api/employee/getAllEmployee`, {
+        headers: {
+          "Content-Type": "application/json",
+          token: token,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       const result = await response.json();
-      if (result.success) setEmployees(result.employees || []);
-      else setError(result.message || "Could not load the employees.");
+      if (result.success) {
+        setEmployees(result.employees || []);
+      } else {
+        setError(result.message || "Could not load the employees.");
+      }
     } catch (err) {
       console.error("Error fetching employee data:", err);
       setError("Could not reach the server. Check your connection and try again.");
