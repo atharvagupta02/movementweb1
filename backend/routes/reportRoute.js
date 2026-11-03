@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   createBill,
+  getBill,
   createExpenses,
   getExpenses,
   updateExpenses,
