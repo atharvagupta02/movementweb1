@@ -1,6 +1,13 @@
 import express from "express";
 import cors from "cors";
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+
 import userRouter from "./routes/userRoute.js";
 import enquiryRouter from "./routes/enquiryRoute.js";
 import patientRouter from "./routes/patientRoute.js";
@@ -73,6 +80,7 @@ app.use("/api/patient", patientRouter);
 app.use("/api/assessment", assessmentRouter);
 app.use("/api/client", clientRouter);
 app.use("/api/report", reportRouter);
+app.use("/api/bill", reportRouter);
 app.use("/api/employee", employeeRouter);
 app.use("/api/treatmentPlan", treatmentPlanRouter);
 app.use("/api/attendance",attendanceRouter );

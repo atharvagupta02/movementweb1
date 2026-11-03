@@ -1,0 +1,24 @@
+services:
+  # Backend Web Service on Render
+  - type: web
+    name: movementweb-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: TRUST_PROXY
+        value: 1
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CLINIC_IP_ENFORCE
+        value: "false"

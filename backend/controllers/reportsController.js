@@ -109,16 +109,49 @@ const getBill = async (req, res) => {
   }
 };
 
-const updateBillPaymentStatus = async (req, res) => {
+const updateBill = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const bill = await billModel.findById(id);
 
-    // ✅ Validate input
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: "Bill not found",
+      });
+    }
+
+    // Check if full formData was sent (from CreateBill editing mode)
+    if (req.body.formData) {
+      const { formData } = req.body;
+
+      if (formData.customer) bill.customer = formData.customer;
+      if (formData.date) bill.date = formData.date;
+      if (formData.billType) bill.billType = formData.billType;
+      if (formData.status) bill.status = formData.status;
+      if (formData.paymentStatus) bill.paymentStatus = formData.paymentStatus;
+      if (Array.isArray(formData.items)) bill.items = formData.items;
+      if (formData.total !== undefined) bill.total = Number(formData.total);
+      if (formData.advancePayment !== undefined) bill.advancePayment = Number(formData.advancePayment);
+      if (formData.amountInWallet !== undefined) bill.amountInWallet = Number(formData.amountInWallet);
+      if (formData.sessionsBilled !== undefined) bill.sessionsBilled = Number(formData.sessionsBilled);
+
+      await bill.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Bill updated successfully",
+        bill,
+      });
+    }
+
+    // Quick payment status update
+    const status = req.body.status || req.body.paymentStatus;
+
     if (!status) {
       return res.status(400).json({
         success: false,
-        message: "Payment status is required",
+        message: "Payment status or formData is required",
       });
     }
 
@@ -129,22 +162,10 @@ const updateBillPaymentStatus = async (req, res) => {
       });
     }
 
-    // ✅ Find bill
-    const bill = await billModel.findById(id);
-
-    if (!bill) {
-      return res.status(404).json({
-        success: false,
-        message: "Bill not found",
-      });
-    }
-
-    // ✅ Update ONLY paymentStatus (safe PUT)
     bill.paymentStatus = status;
-
     await bill.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Payment status updated successfully",
       bill,
@@ -154,14 +175,36 @@ const updateBillPaymentStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
+      error: error.message,
     });
   }
 };
+const updateBillPaymentStatus = updateBill;
 
 const deleteBill = async (req, res) => {
   try {
     const id = req.params.id;
     const bill = await billModel.findByIdAndDelete(id);
+
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: "Bill not found",
+      });
+    }
+
+    // Remove bill reference from patient's billing array
+    if (bill.patientId) {
+      await Patient.findByIdAndUpdate(bill.patientId, {
+        $pull: { billing: bill._id },
+      });
+    } else {
+      await Patient.updateMany(
+        { billing: bill._id },
+        { $pull: { billing: bill._id } }
+      );
+    }
+
     res.status(200).json({
       success: true,
       message: "Bill deleted successfully",
@@ -639,6 +682,8 @@ export {
   getBill,
   getSummary,
   updateBillPaymentStatus,
+  updateBill,
+  deleteBill,
   createExpenses,
   getExpenses,
   createInventory,

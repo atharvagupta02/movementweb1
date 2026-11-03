@@ -1,9 +1,20 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import dns from "dns";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config({
-  path: ".env",
-});
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+
+// On Windows or certain networks, Node's default DNS resolver fails to query SRV
+// records for MongoDB Atlas (querySrv ECONNREFUSED). Using public DNS resolves it.
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch {
+  // Ignore if running in an environment where setServers is unsupported
+}
 
 // One in-flight/finished connection per process. On a server it runs once; in a
 // serverless function it makes every request after the first reuse the open

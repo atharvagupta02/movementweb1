@@ -1,5 +1,22 @@
 import express from 'express';
-import { createBill, createExpenses , createInventory , createRent ,createSalary , getBill , getExpenses , getInventory , getRent , getSalary, getSummary, updateBillPaymentStatus, updateRentStatus, updateSalaryPaidStatus} from '../controllers/reportsController.js';
+import {
+  createBill,
+  createExpenses,
+  createInventory,
+  createRent,
+  createSalary,
+  getBill,
+  getExpenses,
+  getInventory,
+  getRent,
+  getSalary,
+  getSummary,
+  updateBillPaymentStatus,
+  updateBill,
+  deleteBill,
+  updateRentStatus,
+  updateSalaryPaidStatus,
+} from '../controllers/reportsController.js';
 
 import employeeAuth from '../middleware/employeeAuth.js';
 import adminOnly from '../middleware/adminOnly.js';
@@ -7,6 +24,7 @@ import adminOnly from '../middleware/adminOnly.js';
 const reportRouter = express.Router();
 
 reportRouter.post("/bill", employeeAuth, createBill);
+reportRouter.post("/createBill", employeeAuth, createBill);
 reportRouter.post("/expenses", employeeAuth, adminOnly, createExpenses);
 reportRouter.post("/inventory", employeeAuth, adminOnly, createInventory);
 reportRouter.post("/rent", employeeAuth, adminOnly, createRent);
@@ -21,6 +39,10 @@ reportRouter.get("/summary", employeeAuth, adminOnly, getSummary);
 
 reportRouter.put("/rent/:id", employeeAuth, adminOnly, updateRentStatus);
 reportRouter.put("/salary/:entryId/:empId", employeeAuth, adminOnly, updateSalaryPaidStatus);
-reportRouter.put("/bill/:id", employeeAuth, updateBillPaymentStatus);
+reportRouter.put("/bill/:id", employeeAuth, updateBill);
+reportRouter.put("/updateBill/:id", employeeAuth, updateBill);
+
+reportRouter.delete("/bill/:id", employeeAuth, deleteBill);
+reportRouter.delete("/deleteBill/:id", employeeAuth, deleteBill);
 
 export default reportRouter;
