@@ -326,6 +326,126 @@ const getInventory = async (req, res) => {
   }
 };
 
+const updateExpenses = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ...formData } = req.body;
+    const updated = await expensesModel.findByIdAndUpdate(id, formData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: "Expense not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Expense updated successfully",
+      data: updated,
+      expense: updated,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      success: false,
+      message: "Failed to update expense",
+      error: err.message,
+    });
+  }
+};
+
+const deleteExpenses = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await expensesModel.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Expense not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Expense deleted successfully",
+      data: deleted,
+      expense: deleted,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      success: false,
+      message: "Failed to delete expense",
+      error: err.message,
+    });
+  }
+};
+
+const updateInventory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ...formData } = req.body;
+    const updated = await inventoryModel.findByIdAndUpdate(id, formData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: "Inventory purchase not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Inventory updated successfully",
+      data: updated,
+      inventory: updated,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      success: false,
+      message: "Failed to update inventory",
+      error: err.message,
+    });
+  }
+};
+
+const deleteInventory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await inventoryModel.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Inventory purchase not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Purchase deleted successfully",
+      data: deleted,
+      inventory: deleted,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({
+      success: false,
+      message: "Failed to delete inventory",
+      error: err.message,
+    });
+  }
+};
+
 const createRent = async (req, res) => {
   try {
     const { ...formData } = req.body;
@@ -686,8 +806,12 @@ export {
   deleteBill,
   createExpenses,
   getExpenses,
+  updateExpenses,
+  deleteExpenses,
   createInventory,
   getInventory,
+  updateInventory,
+  deleteInventory,
   createRent,
   getRent,
   updateRentStatus,

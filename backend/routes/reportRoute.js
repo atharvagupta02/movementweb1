@@ -2,13 +2,16 @@ import express from 'express';
 import {
   createBill,
   createExpenses,
-  createInventory,
-  createRent,
-  createSalary,
-  getBill,
   getExpenses,
+  updateExpenses,
+  deleteExpenses,
+  createInventory,
   getInventory,
+  updateInventory,
+  deleteInventory,
+  createRent,
   getRent,
+  createSalary,
   getSalary,
   getSummary,
   updateBillPaymentStatus,
@@ -41,8 +44,16 @@ reportRouter.put("/rent/:id", employeeAuth, adminOnly, updateRentStatus);
 reportRouter.put("/salary/:entryId/:empId", employeeAuth, adminOnly, updateSalaryPaidStatus);
 reportRouter.put("/bill/:id", employeeAuth, updateBill);
 reportRouter.put("/updateBill/:id", employeeAuth, updateBill);
+reportRouter.put("/expenses/:id", employeeAuth, adminOnly, updateExpenses);
+reportRouter.put("/updateExpenses/:id", employeeAuth, adminOnly, updateExpenses);
+reportRouter.put("/inventory/:id", employeeAuth, adminOnly, updateInventory);
+reportRouter.put("/updateInventory/:id", employeeAuth, adminOnly, updateInventory);
 
 reportRouter.delete("/bill/:id", employeeAuth, deleteBill);
 reportRouter.delete("/deleteBill/:id", employeeAuth, deleteBill);
+reportRouter.delete("/expenses/:id", employeeAuth, adminOnly, deleteExpenses);
+reportRouter.delete("/deleteExpenses/:id", employeeAuth, adminOnly, deleteExpenses);
+reportRouter.delete("/inventory/:id", employeeAuth, adminOnly, deleteInventory);
+reportRouter.delete("/deleteInventory/:id", employeeAuth, adminOnly, deleteInventory);
 
 export default reportRouter;

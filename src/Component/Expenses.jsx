@@ -1013,15 +1013,30 @@ const UPDATE_EXPENSE_PATH = (id) => `/api/report/expenses/${id}`;
 const DELETE_EXPENSE_PATH = (id) => `/api/report/expenses/${id}`;
 
 const expenseApi = async (path, method, body) => {
-  const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}${path}`, {
+  const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+  const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
+  const res = await fetch(`${backendUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      token: localStorage.getItem("token"),
+      token: token,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const result = await res.json();
+  const text = await res.text();
+  let result;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    result = {
+      success: false,
+      message:
+        res.status === 404
+          ? `The server has no ${method} route at ${path}.`
+          : `Server returned error (${res.status}): ${text.slice(0, 100)}`,
+    };
+  }
   return { ok: res.ok, result };
 };
 

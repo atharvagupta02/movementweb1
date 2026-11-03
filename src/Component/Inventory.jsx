@@ -753,11 +753,14 @@ const DELETE_INVENTORY_PATH = (id) => `/api/report/inventory/${id}`;
 const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
 const inventoryApi = async (path, method, body) => {
-  const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}${path}`, {
+  const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+  const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
+  const res = await fetch(`${backendUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      token: localStorage.getItem("token"),
+      token: token,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -772,8 +775,8 @@ const inventoryApi = async (path, method, body) => {
       success: false,
       message:
         res.status === 404
-          ? `The server has no ${method} route at ${path}. Add it on the backend, or change the path at the top of this file.`
-          : `The server sent an unexpected reply (status ${res.status}). Check that VITE_BACKEND_URL is correct and that you are logged in.`,
+          ? `The server has no ${method} route at ${path}.`
+          : `Server returned error (${res.status}): ${text.slice(0, 100)}`,
     };
   }
   return { ok: res.ok, result };

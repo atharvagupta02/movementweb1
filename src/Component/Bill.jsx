@@ -1133,15 +1133,26 @@ const UPDATE_BILL_PATH = (id) => `/api/bill/updateBill/${id}`;
 const DELETE_BILL_PATH = (id) => `/api/bill/deleteBill/${id}`;
 
 const billApi = async (path, method, body) => {
-  const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}${path}`, {
+  const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+  const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
+  const res = await fetch(`${backendUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      token: localStorage.getItem("token"),
+      token: token,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      success: false,
+      message: `Server returned error (${res.status}): ${text.slice(0, 100)}`,
+    };
+  }
 };
 
 const billKey = (bill) => bill._id || bill.billNumber;
