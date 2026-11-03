@@ -1070,7 +1070,17 @@ const Modal = ({ onClose, label, children, z = "z-[90]" }) => {
 };
 
 const AllEnquiry = () => {
-  const backendURL = import.meta.env.VITE_BACKEND_URL;
+  const backendURL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+  const getAuthHeaders = (extra = {}) => {
+    const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
+    return {
+      "Content-Type": "application/json",
+      token: token,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extra,
+    };
+  };
 
   const [enquiries, setEnquiries] = useState([]);
   const [activeStatus, setActiveStatus] = useState("all");
@@ -1147,8 +1157,21 @@ const AllEnquiry = () => {
         sortBy,
       });
 
-      const response = await fetch(`${backendURL}/api/enquiry/getEnquiry?${params.toString()}`);
+      const response = await fetch(`${backendURL}/api/enquiry/getEnquiry?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        setLoadError("Your session has expired. Please sign in again.");
+        return;
+      }
+
       const result = await response.json();
+      if (!response.ok || !result?.success) {
+        setLoadError(result?.message || `Failed to load enquiries (${response.status})`);
+        return;
+      }
+
       if (id !== reqId.current) return;
 
       setEnquiries(result?.enquiries || []);
@@ -1165,7 +1188,7 @@ const AllEnquiry = () => {
     } catch (error) {
       if (id !== reqId.current) return;
       console.error("Error fetching enquiries:", error);
-      setLoadError("Could not load the enquiries. Check your connection and try again.");
+      setLoadError(error?.message || "Could not load the enquiries. Check your connection and try again.");
     } finally {
       if (id === reqId.current) setLoadingEnquiries(false);
     }
@@ -1183,8 +1206,10 @@ const AllEnquiry = () => {
             search: "",
             sortBy: "newest",
           });
-          const res = await fetch(`${backendURL}/api/enquiry/getEnquiry?${params.toString()}`);
-          const json = await res.json();
+          const res = await fetch(`${backendURL}/api/enquiry/getEnquiry?${params.toString()}`, {
+            headers: getAuthHeaders(),
+          });
+          const json = await res.json().catch(() => ({}));
           return [t.key, json?.pagination?.totalEnquiries ?? null];
         })
       );
@@ -1356,7 +1381,9 @@ const AllEnquiry = () => {
       search: searchTerm.trim(),
       sortBy,
     });
-    const response = await fetch(`${backendURL}/api/enquiry/getEnquiry?${params.toString()}`);
+    const response = await fetch(`${backendURL}/api/enquiry/getEnquiry?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
     const result = await response.json();
     return applyClientFilters(result?.enquiries || []);
   };
@@ -1488,7 +1515,7 @@ const AllEnquiry = () => {
 
       const response = await fetch(`${backendURL}/api/patient/createPatient`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       });
       const result = await response.json();
@@ -1516,7 +1543,7 @@ const AllEnquiry = () => {
 
       const response = await fetch(`${backendURL}/api/patient/updatePatientStatus`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           enquiryId: editData.enquiryId,
           patientId: editData.patientId || null,
@@ -1737,9 +1764,18 @@ const AllEnquiry = () => {
           <div role="alert" className="m-4 flex flex-wrap items-center gap-3 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800 ring-1 ring-rose-200">
             <Icon d={ICONS.alert} />
             <span className="flex-1">{loadError}</span>
-            <button onClick={refreshAll} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700">
-              <Icon d={ICONS.refresh} className="h-3.5 w-3.5" /> Try again
-            </button>
+            {loadError.toLowerCase().includes("session") || loadError.toLowerCase().includes("sign in") ? (
+              <a
+                href="/auth"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B4BAA] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#082F6B]"
+              >
+                Sign in again
+              </a>
+            ) : (
+              <button onClick={refreshAll} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700">
+                <Icon d={ICONS.refresh} className="h-3.5 w-3.5" /> Try again
+              </button>
+            )}
           </div>
         ) : loadingEnquiries ? (
           <div className="animate-pulse divide-y divide-slate-100" aria-busy="true" aria-label="Loading enquiries">

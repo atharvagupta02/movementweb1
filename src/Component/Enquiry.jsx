@@ -82,7 +82,7 @@ const SectionTitle = ({ children }) => (
 );
 
 const EnquiryForm = () => {
-  const backendURL = import.meta.env.VITE_BACKEND_URL;
+  const backendURL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 
   const [formData, setFormData] = useState(EMPTY);
   const [errors, setErrors] = useState({});
@@ -152,12 +152,15 @@ const EnquiryForm = () => {
     setStatus(null);
 
     try {
+      const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
       const response = await fetch(
         `${backendURL}/api/enquiry/createEnquiry`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            token: token,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
             ...formData,
@@ -168,6 +171,14 @@ const EnquiryForm = () => {
           }),
         }
       );
+
+      if (response.status === 401 || response.status === 403) {
+        setStatus({
+          type: "error",
+          text: "Session expired or login required. Please sign in again.",
+        });
+        return;
+      }
 
       const result = await response.json();
 
@@ -190,7 +201,7 @@ const EnquiryForm = () => {
 
       setStatus({
         type: "error",
-        text: "Could not reach the server. Check your connection and try again.",
+        text: error?.message || "Could not reach the server. Check your connection and try again.",
       });
     } finally {
       setLoading(false);

@@ -597,8 +597,17 @@ const Salary = () => {
 
   const fetchAllEmployees = async () => {
     try {
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+      const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/employee/getAllEmployee`,
+        `${backendUrl}/api/employee/getAllEmployee`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            token: token,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
       );
 
       const result = await response.json();
@@ -654,12 +663,16 @@ const Salary = () => {
     };
 
     try {
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+      const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/report/salary`,
+        `${backendUrl}/api/report/salary`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            token: token,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify(payload),
         },
@@ -723,12 +736,16 @@ const Salary = () => {
   // `extra` carries optional fields (deduction, deductionReason) from the edit panel.
   const updatePaidStatus = async (entryId, empId, paid, mode, date, extra = {}) => {
     try {
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+      const token = localStorage.getItem("webapptoken") || localStorage.getItem("token") || "";
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/report/salary/${entryId}/${empId}`,
+        `${backendUrl}/api/report/salary/${entryId}/${empId}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
+            token: token,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
             paid,

@@ -40,7 +40,7 @@ const cacheableUrl = (url) => {
 
 const readToken = () => {
   try {
-    return localStorage.getItem("webapptoken");
+    return localStorage.getItem("webapptoken") || localStorage.getItem("token");
   } catch {
     return null;
   }
@@ -62,15 +62,20 @@ const endSession = () => {
 // Only react to a token we attached: the login form, for instance, sends none
 // and a 401 there just means a wrong password.
 const endSessionIfRejected = async (response, attached) => {
-  if (!attached || (response.status !== 401 && response.status !== 403)) return;
+  if (response.status !== 401 && response.status !== 403) return;
+  const path = window.location.pathname.toLowerCase();
+  if (NO_REDIRECT_PREFIXES.some((prefix) => path.startsWith(prefix))) return;
+
   const body = await response
     .clone()
     .json()
     .catch(() => ({}));
+
   if (
     AUTH_FAILURE_CODES.includes(body?.code) ||
     body?.message?.toLowerCase().includes("token") ||
-    body?.message?.toLowerCase().includes("login")
+    body?.message?.toLowerCase().includes("login") ||
+    !readToken()
   ) {
     endSession();
   }
@@ -79,6 +84,22 @@ const endSessionIfRejected = async (response, attached) => {
 const jsonResponse = (body, contentType) =>
   new Response(body, { status: 200, headers: { "Content-Type": contentType || "application/json" } });
 
+const ensureJsonResponse = async (res) => {
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json") && res.status >= 400) {
+    const text = await res.text().catch(() => "");
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: `Server returned error (${res.status}): ${text.slice(0, 100)}`,
+        code: "SERVER_ERROR",
+      }),
+      { status: res.status, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  return res;
+};
+
 export const installAuthFetch = () => {
   if (typeof window === "undefined" || !BASE || window.__authFetchInstalled) return;
   window.__authFetchInstalled = true;
@@ -86,9 +107,13 @@ export const installAuthFetch = () => {
   const nativeFetch = window.fetch.bind(window);
 
   window.fetch = async (input, init) => {
-    const url = typeof input === "string" ? input : input?.url || String(input);
+    let url = typeof input === "string" ? input : input?.url || String(input);
+    // Sanitize any accidental double slashes in paths (e.g. https://api.com//api -> https://api.com/api)
+    url = url.replace(/([^:]\/)\/+/g, "$1");
+
     if (!url.startsWith(BASE)) return nativeFetch(input, init);
 
+    const cleanInput = typeof input === "string" ? url : input;
     const token = readToken();
     let nextInit = init;
     let attached = false;
@@ -99,6 +124,9 @@ export const installAuthFetch = () => {
         headers.set("token", token);
         attached = true;
       }
+      if (!headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
       nextInit = { ...init, headers };
     }
 
@@ -108,7 +136,8 @@ export const installAuthFetch = () => {
     const key = method === "GET" && typeof input === "string" && token && cacheableUrl(url) ? `${token}|${url}` : null;
 
     if (!key) {
-      const response = await nativeFetch(input, nextInit);
+      let response = await nativeFetch(cleanInput, nextInit);
+      response = await ensureJsonResponse(response);
       await endSessionIfRejected(response, attached);
       return response;
     }
@@ -120,15 +149,16 @@ export const installAuthFetch = () => {
     // Two screens asking for the same list at once share one request.
     let pending = inflight.get(key);
     if (!pending) {
-      pending = nativeFetch(input, nextInit)
+      pending = nativeFetch(cleanInput, nextInit)
         .then(async (res) => {
-          const body = await res.text();
-          const contentType = res.headers.get("content-type");
-          if (res.status === 200) {
+          const guarded = await ensureJsonResponse(res);
+          const body = await guarded.text();
+          const contentType = guarded.headers.get("content-type");
+          if (guarded.status === 200) {
             if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value);
             cache.set(key, { at: Date.now(), body, contentType });
           }
-          return { status: res.status, statusText: res.statusText, body, contentType };
+          return { status: guarded.status, statusText: guarded.statusText, body, contentType };
         })
         .finally(() => inflight.delete(key));
       inflight.set(key, pending);
